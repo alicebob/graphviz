@@ -25,7 +25,7 @@ void layout(Graph*);
 void* subgraph(void*, char*);
 void* node(void*, char*);
 void edge(void*, void*, void*);
-void* set(void*, char*, char*);
+void set(void*, char*, char*);
 pointf pos(void* node);
 
 #ifdef __cplusplus

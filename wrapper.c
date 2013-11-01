@@ -37,7 +37,7 @@ layout(Graph* g)
     gvLayout(g->gvc, g->graph, "dot");
 }
 
-void*
+void
 set(void* g, char* attr, char* value)
 {
     agsafeset(g, attr, value, "");
