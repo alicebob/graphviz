@@ -4,6 +4,7 @@
 #ifndef _WRAPPER_H
 #define _WRAPPER_H 1
 
+#include <stdlib.h>
 #include <gvc.h>
 
 #ifdef __cplusplus
