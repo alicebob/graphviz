@@ -11,22 +11,9 @@
 extern "C" {
 #endif
 
-struct Graph {
-	GVC_t* gvc;
-	void* graph; // That's an Agraph_t
-};
-
-typedef struct Graph Graph;
-
-Graph* makeGraph();
-void freeGraph(Graph*);
-void layout(Graph*);
+void* makeGraph();
 // subgraph, node, edge, set, and pos work on either Graph.graph or a subgraph.
-void* subgraph(void*, char*);
-void* node(void*, char*);
-void edge(void*, void*, void*);
-void set(void*, char*, char*);
-pointf pos(void* node);
+pointf pos(void*);
 
 #ifdef __cplusplus
 }

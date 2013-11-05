@@ -14,49 +14,70 @@ import (
 	"unsafe"
 )
 
-type graph struct {
-	graph        *C.Graph
+type G struct {
+	graph unsafe.Pointer // Used for graphs, nodes, edges, &c.
+}
+type Graph struct {
+	G
+	gvc          *[0]byte
 	nodes        map[string]unsafe.Pointer
 	layoutCalled bool
 }
 type Subgraph struct {
-	graph unsafe.Pointer
+	G
+}
+type Node struct {
+	G
+}
+type Edge struct {
+	G
 }
 
-func MakeGraph() graph {
-	return graph{
-		graph:        C.makeGraph(),
+func MakeGraph() Graph {
+	gvc := C.gvContext() // does an implicit aginit()
+	return Graph{
+		G:            G{graph: C.makeGraph()},
+		gvc:          gvc,
 		nodes:        map[string]unsafe.Pointer{},
 		layoutCalled: false,
 	}
 }
 
 // destroy
-func (g *graph) Close() {
-	C.freeGraph(g.graph)
+func (g *Graph) Close() {
+	C.gvFreeLayout(g.gvc, (*C.graph_t)(g.graph))
+	C.agclose((*C.Agraph_t)(g.graph))
+	C.gvFreeContext(g.gvc)
+
+	// C.freeGraph(g.graph)
 	g.graph = nil
+	g.gvc = nil
 }
 
 // Node adds a named node. Name should be unique.
-func (g *graph) Node(id string) {
+func (g *Graph) Node(id string) Node {
 	if g.layoutCalled {
 		panic("Can't add nodes after calling layout()")
 	}
 	cid := C.CString(id)
 	defer C.free(unsafe.Pointer(cid))
 
-	g.nodes[id] = C.node(g.graph.graph, cid)
+	node := unsafe.Pointer(C.agnode((*C.Agraph_t)(g.graph), cid, 1 /* create */))
+
+	g.nodes[id] = node
+	return Node{G: G{graph: node}}
 }
 
-func (subg *Subgraph) Node(id string) {
+func (subg *Subgraph) Node(id string) Node {
 	cid := C.CString(id)
 	defer C.free(unsafe.Pointer(cid))
-	C.node(subg.graph, cid)
+	node := unsafe.Pointer(C.agnode((*C.Agraph_t)(subg.graph), cid, 1 /* create */))
+	return Node{G: G{graph: node}}
 }
 
 // Edge adds a directed edge.
 // The endpoints have to have been added with Node() before.
-func (g *graph) Edge(fromID, toID string) {
+func (g *Graph) Edge(fromID, toID string) Edge {
 	if g.layoutCalled {
 		panic("Can't add nodes after calling layout()")
 	}
@@ -65,47 +86,59 @@ func (g *graph) Edge(fromID, toID string) {
 	if from == nil || to == nil {
 		panic("Unknown node id")
 	}
-	C.edge(g.graph.graph, from, to)
+	edge := unsafe.Pointer(C.agedge((*C.Agraph_t)(g.graph), (*C.Agnode_t)(from),
+		(*C.Agnode_t)(to), nil, 1 /* create */))
+	return Edge{
+		G: G{graph: edge},
+	}
 }
 
 // Subgraph creates a subgraph
-func (g *graph) Subgraph(name string) Subgraph {
+func (g *Graph) Subgraph(name string) Subgraph {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
+	sub := unsafe.Pointer(C.agsubg((*C.Agraph_t)(g.graph), cname, 1 /* create */))
+
 	return Subgraph{
-		graph: C.subgraph(g.graph.graph, cname),
+		G: G{graph: sub},
 	}
 }
 
 // Rank sets the 'rank' attribute. e.g. 'source'
-func (g *graph) Rank(rank string) {
+func (g *Graph) Rank(rank string) {
 	if g.layoutCalled {
 		panic("Can't call Rank after calling Layout()")
 	}
-	cname := C.CString("rank")
-	defer C.free(unsafe.Pointer(cname))
-	crank := C.CString(rank)
-	defer C.free(unsafe.Pointer(crank))
-	C.set(g.graph.graph, cname, crank)
+	g.Set("rank", rank)
 }
 
 func (subg *Subgraph) Rank(rank string) {
-	cname := C.CString("rank")
-	defer C.free(unsafe.Pointer(cname))
-	crank := C.CString(rank)
-	defer C.free(unsafe.Pointer(crank))
-	C.set(subg.graph, cname, crank)
+	subg.Set("rank", rank)
+}
+
+func (g *G) Set(attr string, value string) {
+	cattr := C.CString(attr)
+	defer C.free(unsafe.Pointer(cattr))
+	cvalue := C.CString(value)
+	defer C.free(unsafe.Pointer(cvalue))
+	cempty := C.CString("")
+	defer C.free(unsafe.Pointer(cempty))
+	// C.set(g.graph, cname, cvalue)
+	C.agsafeset(g.graph, cattr, cvalue, cempty)
 }
 
 // Layout does all the calculations. Pos() will be ready after this.
-func (g *graph) Layout() {
-	C.layout(g.graph)
+func (g *Graph) Layout() {
+	// C.layout(g.gvc, unsafe.Pointer(g.graph))
+	ctype := C.CString("dot")
+	defer C.free(unsafe.Pointer(ctype))
+	C.gvLayout(g.gvc, (*C.graph_t)(g.graph), ctype)
 	g.layoutCalled = true
 }
 
 // Pos only works after Layout()
-func (g *graph) Pos(id string) (float32, float32, error) {
+func (g *Graph) Pos(id string) (float32, float32, error) {
 	if !g.layoutCalled {
 		panic("Can't use pos() before calling layout()")
 	}

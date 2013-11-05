@@ -11,11 +11,13 @@ func TestIt(t *testing.T) {
 
 	g.Node("foo")
 	g.Node("bar")
-	g.Node("baz")
+	node_baz := g.Node("baz")
+	node_baz.Set("label", "Baz!")
 	// fmt.Printf("Graph: %+v\n", g)
 	// g.Node("baz") // breaks?
 	g.Edge("foo", "bar")
-	g.Edge("baz", "bar")
+	edge := g.Edge("baz", "bar")
+	edge.Set("shape", "record")
 	// g.Edge("baz", "baq") // breaks
 	sub1 := g.Subgraph("my sub")
 	sub1.Rank("same")
