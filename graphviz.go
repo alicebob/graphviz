@@ -15,6 +15,12 @@ makeGraph()
 	return agopen("no name", Agdirected, NIL(Agdisc_t *));
 }
 
+void*
+makeSubgraph(void* g, char* name)
+{
+	return agsubg((Agraph_t*) g, name, 1);
+}
+
 pointf
 pos(void* node)
 {
@@ -109,7 +115,7 @@ func (g *Graph) Subgraph(name string) Subgraph {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
-	sub := unsafe.Pointer(C.agsubg((*C.Agraph_t)(g.graph), cname, 1 /* create */))
+	sub := C.makeSubgraph(g.graph, cname)
 
 	return Subgraph{
 		G: G{graph: sub},
