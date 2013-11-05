@@ -5,7 +5,22 @@ package graphviz
 /*
 #cgo CFLAGS: -DDOT_ONLY=1
 #cgo pkg-config: libgvc
-#include "wrapper.h"
+
+#include <stdlib.h>
+#include <gvc.h>
+
+void*
+makeGraph()
+{
+	return agopen("no name", Agdirected, NIL(Agdisc_t *));
+}
+
+pointf
+pos(void* node)
+{
+    return ND_coord((Agnode_t*) node);
+}
+
 */
 import "C"
 
