@@ -29,8 +29,11 @@ func TestIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	if x != 60 || y != 18 {
-		t.Fatalf("Wrong x/y for foo: %v,%v", x, y)
+	if x < 0 || x > 200 {
+		t.Fatalf("Wrong x for foo: %v", x)
+	}
+	if y != 18 {
+		t.Fatalf("Wrong y for foo: %v", y)
 	}
 
 }
