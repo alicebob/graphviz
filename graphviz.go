@@ -21,6 +21,12 @@ makeSubgraph(void* g, char* name)
 	return agsubg((Agraph_t*) g, name, 1);
 }
 
+void*
+makeEdge(void* g, void* from, void* to)
+{
+	return agedge(g, from, to, NULL, 1);
+}
+
 pointf
 pos(void* node)
 {
@@ -103,8 +109,7 @@ func (g *Graph) Edge(fromID, toID string) Edge {
 	if from == nil || to == nil {
 		panic("Unknown node id")
 	}
-	edge := unsafe.Pointer(C.agedge((*C.Agraph_t)(g.graph), (*C.Agnode_t)(from),
-		(*C.Agnode_t)(to), nil, 1 /* create */))
+	edge := C.makeEdge(g.graph, from, to)
 	return Edge{
 		G: G{graph: edge},
 	}
