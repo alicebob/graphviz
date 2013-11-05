@@ -15,6 +15,12 @@ makeGraph()
 	return agopen("no name", Agdirected, NIL(Agdisc_t *));
 }
 
+void
+closeGraph(void* g)
+{
+	agclose(g);
+}
+
 void*
 makeSubgraph(void* g, char* name)
 {
@@ -25,6 +31,12 @@ void*
 makeEdge(void* g, void* from, void* to)
 {
 	return agedge(g, from, to, NULL, 1);
+}
+
+void*
+makeNode(void* g, char* name)
+{
+	return agnode(g, name, 1);
 }
 
 pointf
@@ -74,7 +86,7 @@ func MakeGraph() Graph {
 // destroy
 func (g *Graph) Close() {
 	C.gvFreeLayout(g.gvc, (*C.graph_t)(g.graph))
-	C.agclose((*C.Agraph_t)(g.graph))
+	C.closeGraph(g.graph)
 	C.gvFreeContext(g.gvc)
 
 	g.graph = nil
@@ -86,8 +98,7 @@ func (g *Graph) Node(id string) Node {
 	cid := C.CString(id)
 	defer C.free(unsafe.Pointer(cid))
 
-	node := unsafe.Pointer(C.agnode((*C.Agraph_t)(g.graph), cid, 1 /* create */))
-
+	node := C.makeNode(g.graph, cid)
 	g.nodes[id] = node
 	return Node{G: G{graph: node}}
 }
@@ -97,7 +108,8 @@ func (g *Graph) Node(id string) Node {
 func (subg *Subgraph) Node(id string) Node {
 	cid := C.CString(id)
 	defer C.free(unsafe.Pointer(cid))
-	node := unsafe.Pointer(C.agnode((*C.Agraph_t)(subg.graph), cid, 1 /* create */))
+
+	node := C.makeNode(subg.graph, cid)
 	return Node{G: G{graph: node}}
 }
 
