@@ -26,16 +26,13 @@ func TestIt(t *testing.T) {
 	sub2 := g.Subgraph("my 2nd sub")
 	sub2.Rank("source")
 	sub2.Node("baz")
-	g.Layout()
-	x, y, err := g.Pos("foo")
-	if err != nil {
-		t.Fatalf("%s", err)
+	pos := g.Layout()
+	pos_foo := pos["foo"]
+	if pos_foo.X < 0 || pos_foo.X > 200 {
+		t.Fatalf("Wrong x for foo: %v", pos_foo.X)
 	}
-	if x < 0 || x > 200 {
-		t.Fatalf("Wrong x for foo: %v", x)
-	}
-	if y != 18 {
-		t.Fatalf("Wrong y for foo: %v", y)
+	if pos_foo.Y != 18 {
+		t.Fatalf("Wrong y for foo: %v", pos_foo.Y)
 	}
 
 }

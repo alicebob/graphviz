@@ -17,12 +17,12 @@ Usage:
 	g.Edge("foo", "bar")
 	sub1 := g.Subgraph("my sub")
 	sub1.Rank("same")
-	sub1.Node("bar")
+	node_bar := sub1.Node("bar")
+	node_bar.Set("label", "A bar")
 	sub1.Node("baz")
 
-	g.Layout()
+	positions := g.Layout()
 
-	x, y, err := g.Pos("foo")
-	x, y, err := g.Pos("bat")
+	fmt.Printf("Foo: %v,%v\n", positions["foo"].X, positions["foo"].Y)
     ... &c
 
