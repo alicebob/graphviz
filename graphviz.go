@@ -33,7 +33,7 @@ type G struct {
 }
 type Graph struct {
 	G
-	gvc   *[0]byte
+	gvc   *C.GVC_t
 	nodes map[string]unsafe.Pointer
 }
 type Subgraph struct {
