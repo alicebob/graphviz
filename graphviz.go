@@ -49,6 +49,7 @@ pos(void* node)
 import "C"
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -118,8 +119,11 @@ func (subg *Subgraph) Node(id string) Node {
 func (g *Graph) Edge(fromID, toID string) Edge {
 	from := g.nodes[fromID]
 	to := g.nodes[toID]
-	if from == nil || to == nil {
-		panic("Unknown node id")
+	if from == nil {
+		panic(fmt.Sprintf("unknown node id '%v'", fromID))
+	}
+	if to == nil {
+		panic(fmt.Sprintf("unknown node id '%v'", toID))
 	}
 	edge := C.makeEdge(g.graph, from, to)
 	return Edge{
