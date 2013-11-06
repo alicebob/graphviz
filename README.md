@@ -5,6 +5,13 @@ Only directed non-strict graph is supported, only dot layout is supported.
 
 Tested on graphviz 2.34.0.
 
+Build:
+	On Mavericks you need to use apple's gcc4.2
+	brew install apple-gcc42
+	cd /usr/bin
+	sudo mv gcc gcc_mavs
+	sudo ln -s /usr/local/Cellar/apple-gcc42/4.2.1-5666.3/bin/gcc-4.2 gcc
+
 Usage:
 
 	g := MakeGraph()
