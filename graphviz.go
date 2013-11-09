@@ -31,9 +31,11 @@ import (
 )
 
 var mutex sync.Mutex
+var gvc *C.GVC_t
 
 func init() {
 	mutex = sync.Mutex{}
+	gvc = C.gvContext() // does an implicit aginit()
 }
 
 type G struct {
@@ -41,7 +43,7 @@ type G struct {
 }
 type Graph struct {
 	G
-	gvc   *C.GVC_t
+	// gvc   *C.GVC_t
 	nodes map[string]unsafe.Pointer
 }
 type Subgraph struct {
@@ -62,10 +64,10 @@ func MakeGraph() Graph {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	gvc := C.gvContext() // does an implicit aginit()
+	// gvc := C.gvContext() // does an implicit aginit()
 	return Graph{
-		G:     G{graph: C.makeGraph()},
-		gvc:   gvc,
+		G: G{graph: C.makeGraph()},
+		// gvc:   gvc,
 		nodes: map[string]unsafe.Pointer{},
 	}
 }
@@ -74,12 +76,11 @@ func MakeGraph() Graph {
 func (g *Graph) Close() {
 	mutex.Lock()
 	defer mutex.Unlock()
-	C.gvFreeLayout(g.gvc, (*C.graph_t)(g.graph))
 	C.agclose((*C.Agraph_t)(g.graph))
-	C.gvFreeContext(g.gvc)
+	// C.gvFreeContext(g.gvc)
 
 	g.graph = nil
-	g.gvc = nil
+	// g.gvc = nil
 }
 
 // Node adds a named node. Name should be unique.
@@ -171,7 +172,7 @@ func (g *Graph) Layout() map[string]Pos {
 
 	mutex.Lock()
 	defer mutex.Unlock()
-	C.gvLayout(g.gvc, (*C.graph_t)(g.graph), ctype)
+	C.gvLayout(gvc, (*C.graph_t)(g.graph), ctype)
 
 	positions := map[string]Pos{}
 	for id, node := range g.nodes {
@@ -181,5 +182,6 @@ func (g *Graph) Layout() map[string]Pos {
 			Y: float32(pos.y),
 		}
 	}
+	C.gvFreeLayout(gvc, (*C.graph_t)(g.graph))
 	return positions
 }
