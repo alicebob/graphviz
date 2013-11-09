@@ -26,8 +26,15 @@ import "C"
 
 import (
 	"fmt"
+	"sync"
 	"unsafe"
 )
+
+var mutex sync.Mutex
+
+func init() {
+	mutex = sync.Mutex{}
+}
 
 type G struct {
 	graph unsafe.Pointer // Used for graphs, nodes, edges, &c.
@@ -52,6 +59,9 @@ type Pos struct {
 }
 
 func MakeGraph() Graph {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	gvc := C.gvContext() // does an implicit aginit()
 	return Graph{
 		G:     G{graph: C.makeGraph()},
@@ -62,6 +72,8 @@ func MakeGraph() Graph {
 
 // destroy
 func (g *Graph) Close() {
+	mutex.Lock()
+	defer mutex.Unlock()
 	C.gvFreeLayout(g.gvc, (*C.graph_t)(g.graph))
 	C.agclose((*C.Agraph_t)(g.graph))
 	C.gvFreeContext(g.gvc)
@@ -75,6 +87,8 @@ func (g *Graph) Node(id string) Node {
 	cid := C.CString(id)
 	defer C.free(unsafe.Pointer(cid))
 
+	mutex.Lock()
+	defer mutex.Unlock()
 	node := unsafe.Pointer(C.agnode((*C.Agraph_t)(g.graph), cid, 1 /* create */))
 
 	g.nodes[id] = node
@@ -86,6 +100,9 @@ func (g *Graph) Node(id string) Node {
 func (subg *Subgraph) Node(id string) Node {
 	cid := C.CString(id)
 	defer C.free(unsafe.Pointer(cid))
+
+	mutex.Lock()
+	defer mutex.Unlock()
 	node := unsafe.Pointer(C.agnode((*C.Agraph_t)(subg.graph), cid, 1 /* create */))
 	return Node{G: G{graph: node}}
 }
@@ -101,6 +118,9 @@ func (g *Graph) Edge(fromID, toID string) Edge {
 	if to == nil {
 		panic(fmt.Sprintf("unknown node id '%v'", toID))
 	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
 	edge := unsafe.Pointer(C.agedge((*C.Agraph_t)(g.graph), (*C.Agnode_t)(from),
 		(*C.Agnode_t)(to), nil, 1 /* create */))
 	return Edge{
@@ -113,6 +133,8 @@ func (g *Graph) Subgraph(name string) Subgraph {
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
+	mutex.Lock()
+	defer mutex.Unlock()
 	sub := unsafe.Pointer(C.agsubg((*C.Agraph_t)(g.graph), cname, 1 /* create */))
 
 	return Subgraph{
@@ -136,6 +158,9 @@ func (g *G) Set(attr string, value string) {
 	defer C.free(unsafe.Pointer(cvalue))
 	cempty := C.CString("")
 	defer C.free(unsafe.Pointer(cempty))
+
+	mutex.Lock()
+	defer mutex.Unlock()
 	C.agsafeset(g.graph, cattr, cvalue, cempty)
 }
 
@@ -143,6 +168,9 @@ func (g *G) Set(attr string, value string) {
 func (g *Graph) Layout() map[string]Pos {
 	ctype := C.CString("dot")
 	defer C.free(unsafe.Pointer(ctype))
+
+	mutex.Lock()
+	defer mutex.Unlock()
 	C.gvLayout(g.gvc, (*C.graph_t)(g.graph), ctype)
 
 	positions := map[string]Pos{}
