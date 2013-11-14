@@ -16,9 +16,9 @@ makeGraph()
 }
 
 pointf
-pos(void* node)
+pos(Agnode_t* node)
 {
-    return ND_coord((Agnode_t*) node);
+    return ND_coord(node);
 }
 
 */
@@ -43,11 +43,10 @@ type G struct {
 }
 type Graph struct {
 	G
-	// gvc   *C.GVC_t
-	nodes map[string]unsafe.Pointer
 }
 type Subgraph struct {
 	G
+	main *Graph
 }
 type Node struct {
 	G
@@ -67,8 +66,6 @@ func MakeGraph() Graph {
 	// gvc := C.gvContext() // does an implicit aginit()
 	return Graph{
 		G: G{graph: C.makeGraph()},
-		// gvc:   gvc,
-		nodes: map[string]unsafe.Pointer{},
 	}
 }
 
@@ -83,36 +80,42 @@ func (g *Graph) Close() {
 	// g.gvc = nil
 }
 
-// Node adds a named node. Name should be unique.
+// Node adds a named node. Will return an old one if it existed.
 func (g *Graph) Node(id string) Node {
-	cid := C.CString(id)
-	defer C.free(unsafe.Pointer(cid))
-
 	mutex.Lock()
 	defer mutex.Unlock()
-	node := unsafe.Pointer(C.agnode((*C.Agraph_t)(g.graph), cid, 1 /* create */))
 
-	g.nodes[id] = node
+	node := g.node(id)
 	return Node{G: G{graph: node}}
 }
 
-// Note: you'll probably want to add it to the main graph as well, otherwise you
-// won't get a position for it back from Layout().
-func (subg *Subgraph) Node(id string) Node {
+// Internal node lookup. Needs to be locked!
+func (g *Graph) node(id string) unsafe.Pointer {
 	cid := C.CString(id)
 	defer C.free(unsafe.Pointer(cid))
 
+	return unsafe.Pointer(C.agnode((*C.Agraph_t)(g.graph), cid, 1 /* create */))
+}
+
+func (subg *Subgraph) Node(id string) Node {
 	mutex.Lock()
 	defer mutex.Unlock()
-	node := unsafe.Pointer(C.agnode((*C.Agraph_t)(subg.graph), cid, 1 /* create */))
-	return Node{G: G{graph: node}}
+
+	node := subg.main.node(id)
+
+	subnode := unsafe.Pointer(C.agsubnode((*C.Agraph_t)(subg.graph), (*C.Agnode_t)(node), 1 /* create */))
+	// node := unsafe.Pointer(C.agnode((*C.Agraph_t)(subg.graph), cid, 1 /* create */))
+	return Node{G: G{graph: subnode}}
 }
 
 // Edge adds a directed edge.
 // The endpoints have to have been added with Node() before.
 func (g *Graph) Edge(fromID, toID string) Edge {
-	from := g.nodes[fromID]
-	to := g.nodes[toID]
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	from := g.node(fromID)
+	to := g.node(toID)
 	if from == nil {
 		panic(fmt.Sprintf("unknown node id '%v'", fromID))
 	}
@@ -120,8 +123,6 @@ func (g *Graph) Edge(fromID, toID string) Edge {
 		panic(fmt.Sprintf("unknown node id '%v'", toID))
 	}
 
-	mutex.Lock()
-	defer mutex.Unlock()
 	edge := unsafe.Pointer(C.agedge((*C.Agraph_t)(g.graph), (*C.Agnode_t)(from),
 		(*C.Agnode_t)(to), nil, 1 /* create */))
 	return Edge{
@@ -139,7 +140,8 @@ func (g *Graph) Subgraph(name string) Subgraph {
 	sub := unsafe.Pointer(C.agsubg((*C.Agraph_t)(g.graph), cname, 1 /* create */))
 
 	return Subgraph{
-		G: G{graph: sub},
+		G:    G{graph: sub},
+		main: g,
 	}
 }
 
@@ -165,7 +167,7 @@ func (g *G) Set(attr string, value string) {
 	C.agsafeset(g.graph, cattr, cvalue, cempty)
 }
 
-// Layout does all the calculations. Pos() will be ready after this.
+// Layout does all the calculations. Returns the positions of all nodes.
 func (g *Graph) Layout() map[string]Pos {
 	ctype := C.CString("dot")
 	defer C.free(unsafe.Pointer(ctype))
@@ -175,12 +177,15 @@ func (g *Graph) Layout() map[string]Pos {
 	C.gvLayout(gvc, (*C.graph_t)(g.graph), ctype)
 
 	positions := map[string]Pos{}
-	for id, node := range g.nodes {
+	node := C.agfstnode((*C.Agraph_t)(g.graph))
+	for node != nil {
 		pos := C.pos(node)
-		positions[id] = Pos{
+		name := C.GoString(C.agnameof(unsafe.Pointer(node)))
+		positions[name] = Pos{
 			X: float32(pos.x),
 			Y: float32(pos.y),
 		}
+		node = C.agnxtnode((*C.Agraph_t)(g.graph), (*C.Agnode_t)(node))
 	}
 	C.gvFreeLayout(gvc, (*C.graph_t)(g.graph))
 	return positions
